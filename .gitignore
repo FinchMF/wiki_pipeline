@@ -1,0 +1,5 @@
+env10/
+logs/
+*.csv
+*.db
+__pycache__/
