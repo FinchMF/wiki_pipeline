@@ -3,3 +3,4 @@ logs/
 *.csv
 *.db
 __pycache__/
+tests.ipynb
