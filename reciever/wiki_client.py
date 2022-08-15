@@ -102,7 +102,8 @@ class Wiki:
             top = client.page(topic[0])
 
         collection[top.title] = {
-
+            
+            'title': top.title,
             'summary': top.summary,
             'section_name': top.sections,
             'sections': {}
@@ -251,3 +252,6 @@ class Wiki:
                     associated_search=self.associated_search
                 )
 
+    def fetch_multiple_hops(self) -> None:
+
+        pass

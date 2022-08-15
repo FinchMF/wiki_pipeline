@@ -1,3 +1,4 @@
+.env
 env10/
 logs/
 *.csv
