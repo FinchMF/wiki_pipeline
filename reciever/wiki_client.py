@@ -1,5 +1,6 @@
 
-from mediawiki import MediaWiki
+import random
+from mediawiki import MediaWiki, DisambiguationError
 
 
 class Wiki:
@@ -94,32 +95,44 @@ class Wiki:
         with a topic list, then this function will
         use the first topic in the list
         """
+        loop = True
+        while loop:
 
-        if isinstance(topic, str):
-            top = client.page(topic)
+            try:
+                if isinstance(topic, str):
+                    top = client.page(topic)
+                    loop = False
 
-        if isinstance(topic, list):
-            top = client.page(topic[0])
+                if isinstance(topic, list):
+                    top = client.page(topic[0])
+                    loop = False
 
-        collection[top.title] = {
-            
-            'title': top.title,
-            'summary': top.summary,
-            'section_name': top.sections,
-            'sections': {}
-        }
+            except DisambiguationError as err:
 
-        for section in top.sections:
-            if section not in [
-                'See also',
-                'References', 
-                'Further reading', 
-                'External links'
-                ]:
+                topic = err.options[0]
+    
 
-                collection[top.title]['sections'][section] = {
-                    'content': top.section(section_title=section)
-                }
+        if top.title not in collection.keys():
+
+            collection[top.title] = {
+                
+                'title': top.title,
+                'summary': top.summary,
+                'section_name': top.sections,
+                'sections': {}
+            }
+
+            for section in top.sections:
+                if section not in [
+                    'See also',
+                    'References', 
+                    'Further reading', 
+                    'External links'
+                    ]:
+
+                    collection[top.title]['sections'][section] = {
+                        'content': top.section(section_title=section)
+                    }
 
         return collection
 
@@ -207,11 +220,11 @@ class Wiki:
             self.parse_multiple_topics()
 
 
-    def pull_associated_searches(self, topic: str) -> None:
+    def pull_associated_searches(self, topic: str, top: int = 5) -> None:
         """
         method to set search results for a given topic
         """
-        self.associated_search[topic] = self.client.search(topic)
+        self.associated_search[topic] = self.client.search(topic)[0:top]
 
 
     def get_associated_searches(self) -> None:
@@ -252,6 +265,66 @@ class Wiki:
                     associated_search=self.associated_search
                 )
 
+    
+    def process_associated_searches(self, topic: str) -> None:
+        """
+        method
+        """
+        if topic not in list(self.associated_search.keys()):
+
+            self.pull_associated_searches(topic=topic)
+        
+        self.collection = Wiki._parse_multiple_topics(
+
+            collection=self.collection, 
+            client=self.client, 
+            topic=self.associated_search[topic]
+        )
+
+
+    def hop_search(self, search_topics: list, hop: int) -> None:
+
+        h = 0
+        while h <= hop:
+
+            for topic in search_topics:
+                self.process_associated_searches(topic=topic)
+
+
+            h += 1
+            if h == hop:
+                continue
+
+            else:
+
+                tmp = []
+                for topic in search_topics:
+                    tmp.extend(self.associated_search[topic])
+
+                search_topics = tmp
+
+
     def fetch_multiple_hops(self) -> None:
 
-        pass
+        if isinstance(self.topic, str):
+
+            self.hop_search(
+                
+                search_topics=self.associated_search[self.topic], 
+                hop=self.hops
+                
+            )
+
+        if isinstance(self.topic, list):
+
+            for topic in self.topic:
+
+                if topic not in list(self.associated_search.keys()):
+
+                    self.pull_associated_searches(topic=topic)
+
+                self.hop_search(
+
+                    search_topics=self.associated_search[topic], 
+                    hop=self.hops
+                )
